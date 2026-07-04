@@ -276,7 +276,7 @@ def generate_wechat_html(news_list: List[Dict]) -> str:
 
 <!-- 标题区 -->
 <section style="text-align: center; padding: 25px 15px; background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); border-radius: 8px; margin-bottom: 25px;">
-  <h1 style="font-size: 22px; color: #ffffff; margin: 0 0 8px 0; font-weight: bold; letter-spacing: 1px;">🏎️ 赛车日报</h1>
+  <h1 style="font-size: 22px; color: #ffffff; margin: 0 0 8px 0; font-weight: bold; letter-spacing: 1px;">🏎️ Grid 1</h1>
   <p style="font-size: 14px; color: rgba(255,255,255,0.85); margin: 0;">{today} | 每日 10:00 更新</p>
 </section>
 
@@ -384,22 +384,36 @@ def generate_wechat_html(news_list: List[Dict]) -> str:
     </p>
 """
 
-            # 原文链接
-            if link:
-                html += f"""    <p style="font-size: 12px; margin: 8px 0; text-align: right;">
-      <a href="{link}" style="color: {color['main']}; text-decoration: none;">📎 查看原文 →</a>
-    </p>
-"""
-
             html += "  </section>\n"
+
+        html += "</section>\n"
+
+    # 参考来源（公众号正文外部链接不可点击，改为底部集中展示纯文本）
+    ref_links = []
+    ref_idx = 1
+    for news in news_list:
+        link = news.get("link", "")
+        source = news.get("source", "")
+        if link:
+            ref_links.append(f"[{ref_idx}] {source}：{link}")
+            ref_idx += 1
+
+    if ref_links:
+        html += f"""
+<!-- 参考来源 -->
+<section style="margin-top: 30px; padding: 18px; background: #fafafa; border-radius: 8px;">
+  <p style="font-size: 13px; color: #666666; font-weight: bold; margin: 0 0 10px 0;">📎 参考来源（长按链接可复制）</p>
+"""
+        for rl in ref_links:
+            html += f'  <p style="font-size: 11px; color: #999999; margin: 4px 0; line-height: 1.6; word-break: break-all;">{rl}</p>\n'
 
         html += "</section>\n"
 
     # 文章尾部
     html += f"""
 <!-- 文章尾部 -->
-<section style="text-align: center; padding: 20px 15px; background: #f8f8f8; border-radius: 8px; margin-top: 30px; color: #999999; font-size: 13px;">
-  <p style="margin: 5px 0;">🏎️ 赛车日报 · 每日 10:00 准时更新</p>
+<section style="text-align: center; padding: 20px 15px; background: #f8f8f8; border-radius: 8px; margin-top: 20px; color: #999999; font-size: 13px;">
+  <p style="margin: 5px 0;">🏎️ Grid 1 · 每日 10:00 准时更新</p>
   <p style="margin: 5px 0;">关注我们，第一时间获取 F1、中国GT 等赛事资讯</p>
   <p style="margin: 5px 0; font-size: 12px; color: #bbbbbb;">生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
 </section>
@@ -420,7 +434,7 @@ def generate_plain_text(news_list: List[Dict]) -> str:
 
     lines = []
     lines.append("=" * 40)
-    lines.append(f"🏎️ 赛车日报 | {today}")
+    lines.append(f"🏎️ Grid 1 | {today}")
     lines.append("=" * 40)
     lines.append("")
 
@@ -481,7 +495,7 @@ def generate_plain_text(news_list: List[Dict]) -> str:
             if keywords:
                 lines.append(f"📌 关键词：{keywords}")
 
-            # 来源
+            # 来源（不在这里显示链接，统一放底部）
             meta_parts = []
             if source:
                 meta_parts.append(f"来源：{source}")
@@ -490,17 +504,31 @@ def generate_plain_text(news_list: List[Dict]) -> str:
             if meta_parts:
                 lines.append(" | ".join(meta_parts))
 
-            # 原文链接
-            if link:
-                lines.append(f"📎 原文：{link}")
-
             lines.append("")
             lines.append("-" * 40)
 
         lines.append("")
 
+    # 参考来源（集中展示，方便长按复制）
+    ref_links = []
+    ref_idx = 1
+    for news in news_list:
+        link = news.get("link", "")
+        source = news.get("source", "")
+        if link:
+            ref_links.append(f"[{ref_idx}] {source}：{link}")
+            ref_idx += 1
+
+    if ref_links:
+        lines.append("")
+        lines.append("📎 参考来源（长按链接可复制到浏览器打开）")
+        lines.append("-" * 40)
+        for rl in ref_links:
+            lines.append(rl)
+        lines.append("")
+
     lines.append("=" * 40)
-    lines.append("🏎️ 赛车日报 · 每日 10:00 准时更新")
+    lines.append("🏎️ Grid 1 · 每日 10:00 准时更新")
     lines.append(f"生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}")
     lines.append("=" * 40)
 
@@ -512,7 +540,7 @@ def generate_markdown(news_list: List[Dict]) -> str:
     today = datetime.now().strftime("%Y年%m月%d日")
 
     md_lines = []
-    md_lines.append(f"# 🏎️ 赛车日报 | {today}")
+    md_lines.append(f"# 🏎️ Grid 1 | {today}")
     md_lines.append("")
     md_lines.append("> 每日 10:00 自动更新，汇总全球赛车资讯")
     md_lines.append("")
@@ -581,7 +609,7 @@ def generate_markdown(news_list: List[Dict]) -> str:
 
     md_lines.append(f"*生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}*")
     md_lines.append("")
-    md_lines.append("#赛车日报 #F1 #中国GT")
+    md_lines.append("#赛车日报 #Grid1 #F1 #中国GT")
 
     return "\n".join(md_lines)
 
@@ -604,7 +632,7 @@ def generate_article_title(news_list: List[Dict]) -> str:
     if cat_count.get("MotoGP", 0) > 0:
         parts.append("MotoGP")
 
-    return f"🏎️ 赛车日报 | {today}：{'+'.join(parts)}（共{len(news_list)}条）"
+    return f"🏎️ Grid 1 | {today}：{'+'.join(parts)}（共{len(news_list)}条）"
 
 
 # ============================================================
@@ -625,7 +653,7 @@ def process_news(news_list: List[Dict]) -> Dict:
     if not valid_news:
         print("[AI] 警告：没有有效新闻可处理，生成提示信息...")
         today = datetime.now().strftime("%Y年%m月%d日")
-        article_title = f"🏎️ 赛车日报 | {today}（今日暂无新闻）"
+        article_title = f"🏎️ Grid 1 | {today}（今日暂无新闻）"
         article_html = generate_no_news_html(today)
         result = {
             "title": article_title,
@@ -659,7 +687,7 @@ def process_news(news_list: List[Dict]) -> Dict:
     if not processed:
         print("[AI] 警告：所有新闻均为非新闻内容，生成提示信息...")
         today = datetime.now().strftime("%Y年%m月%d日")
-        article_title = f"🏎️ 赛车日报 | {today}（今日暂无有效新闻）"
+        article_title = f"🏎️ Grid 1 | {today}（今日暂无有效新闻）"
         article_html = generate_no_news_html(today, reason="今日抓取到的内容多为赞助商列表、合作伙伴页面等非新闻内容，已自动过滤。")
         result = {
             "title": article_title,
@@ -762,7 +790,7 @@ def generate_no_news_html(today: str, reason: str = "") -> str:
     reason_html = f"<p style='font-size: 14px; color: #666; margin: 10px 0;'>{reason}</p>" if reason else ""
     return f"""<section style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; color: #333; line-height: 1.8;">
 <section style="text-align: center; padding: 25px 15px; background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); border-radius: 8px; margin-bottom: 25px;">
-  <h1 style="font-size: 22px; color: #ffffff; margin: 0 0 8px 0; font-weight: bold;">🏎️ 赛车日报</h1>
+  <h1 style="font-size: 22px; color: #ffffff; margin: 0 0 8px 0; font-weight: bold;">🏎️ Grid 1</h1>
   <p style="font-size: 14px; color: rgba(255,255,255,0.85); margin: 0;">{today}</p>
 </section>
 <section style="margin-bottom: 30px; padding: 20px; background: #fafafa; border-radius: 8px; text-align: center;">
@@ -777,7 +805,7 @@ def generate_no_news_html(today: str, reason: str = "") -> str:
   <p style="font-size: 14px; color: #999; margin: 15px 0;">系统将每天 10:00 自动重试，请耐心等待。</p>
 </section>
 <section style="text-align: center; padding: 20px 15px; background: #f8f8f8; border-radius: 8px; margin-top: 30px; color: #999; font-size: 13px;">
-  <p style="margin: 5px 0;">🏎️ 赛车日报 · 每日 10:00 准时更新</p>
+  <p style="margin: 5px 0;">🏎️ Grid 1 · 每日 10:00 准时更新</p>
   <p style="margin: 5px 0; font-size: 12px; color: #bbb;">生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
 </section>
 </section>"""
@@ -787,7 +815,7 @@ def generate_no_news_plain(today: str, reason: str = "") -> str:
     """生成暂无新闻的纯文本"""
     reason_text = f"\n{reason}\n" if reason else ""
     return f"""========================================
-🏎️ 赛车日报 | {today}
+🏎️ Grid 1 | {today}
 ========================================
 
 📭 今日暂无有效赛车新闻{reason_text}
@@ -800,7 +828,7 @@ def generate_no_news_plain(today: str, reason: str = "") -> str:
 系统将每天 10:00 自动重试，请耐心等待。
 
 ========================================
-🏎️ 赛车日报 · 每日 10:00 准时更新
+🏎️ Grid 1 · 每日 10:00 准时更新
 生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}
 ========================================
 """
@@ -809,7 +837,7 @@ def generate_no_news_plain(today: str, reason: str = "") -> str:
 def generate_no_news_md(today: str, reason: str = "") -> str:
     """生成暂无新闻的 Markdown"""
     reason_md = f"\n> {reason}\n" if reason else ""
-    return f"""# 🏎️ 赛车日报 | {today}
+    return f"""# 🏎️ Grid 1 | {today}
 
 > 每日 10:00 自动更新，汇总全球赛车资讯{reason_md}
 
