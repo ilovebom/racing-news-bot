@@ -1,0 +1,65 @@
+# GitHub Actions 工作流 - 赛车资讯每日自动发布
+# 每天北京时间 10:00 自动运行（UTC 时间 02:00）
+
+name: 赛车资讯每日发布
+
+on:
+  # 定时触发：每天北京时间 10:00（UTC 02:00）
+  schedule:
+    - cron: '0 2 * * *'  # 注意：GitHub Actions 使用 UTC 时间
+  
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 步骤 1：检出代码
+      - name: 检出代码
+        uses: actions/checkout@v4
+      
+      # 步骤 2：设置 Python 环境
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      # 步骤 3：安装系统依赖（Playwright 需要）
+      - name: 安装系统依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2
+      
+      # 步骤 4：安装 Python 依赖
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install chromium
+      
+      # 步骤 5：配置环境变量
+      - name: 创建 .env 文件
+        run: |
+          echo "DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" >> .env
+          echo "AI_MODEL=deepseek-chat" >> .env
+          echo "AUTO_PUBLISH=false" >> .env
+          echo "MAX_NEWS_PER_DAY=8" >> .env
+          echo "LOG_LEVEL=INFO" >> .env
+        shell: bash
+      
+      # 步骤 6：运行主程序
+      - name: 运行赛车资讯自动发布
+        run: python main.py
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      
+      # 步骤 7：上传运行结果（可选）
+      - name: 上传生成的文章
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 生成的文章
+          path: data/
+          retention-days: 7
