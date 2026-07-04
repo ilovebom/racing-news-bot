@@ -53,12 +53,6 @@ F1_RSS_SOURCES = [
         "lang": "en",
         "category": "F1",
     },
-    {
-        "name": "F1 TireTalks (Reddit)",
-        "url": "https://www.reddit.com/r/formula1/.rss",
-        "lang": "en",
-        "category": "F1",
-    },
 ]
 
 # F1 网页备份源（RSS 失败时的备用）
@@ -74,18 +68,6 @@ F1_WEB_SOURCES = [
         "url": "https://www.motorsport.com/f1/",
         "category": "F1",
         "selectors": ["article a", ".news-item a", ".article-title a", "h3 a", "h2 a"],
-    },
-    {
-        "name": "Autosport F1 网页",
-        "url": "https://www.autosport.com/f1/news/",
-        "category": "F1",
-        "selectors": ["article a", ".article-link", "h3 a", "h2 a"],
-    },
-    {
-        "name": "Racer.com F1 网页",
-        "url": "https://racer.com/category/f1/",
-        "category": "F1",
-        "selectors": ["article a", ".entry-title a", "h2 a", "h3 a"],
     },
 ]
 
@@ -147,37 +129,19 @@ WRC_RSS_SOURCES = [
 ]
 
 # --------------------
-# 国内赛车新闻源
+# 国内赛车新闻源（网页抓取，部分源可能需要调整）
 # --------------------
 CHINA_RACING_WEB_SOURCES = [
-    {
-        "name": "新浪赛车",
-        "url": "https://sports.sina.com.cn/racing/",
-        "category": "国内赛车",
-        "selectors": [".news-item a", ".news-list a", "h3 a", "h2 a", "li a"],
-    },
     {
         "name": "腾讯赛车",
         "url": "https://sports.qq.com/racing/",
         "category": "国内赛车",
         "selectors": [".news-item a", ".news-list a", "h3 a", "h2 a"],
     },
-    {
-        "name": "赛车门户",
-        "url": "https://www.motorsports.org.cn/",
-        "category": "国内赛车",
-        "selectors": [".news-list a", ".article-list a", "h3 a", "h2 a"],
-    },
-    {
-        "name": "中国汽车运动联合会",
-        "url": "http://www.fasc.org.cn/",
-        "category": "国内赛车",
-        "selectors": [".news-list a", ".article-list a", "li a", "h3 a"],
-    },
 ]
 
 # --------------------
-# 中国GT / 澳门格兰披治 / 其他国内赛事
+# 中国GT / 澳门格兰披治 / 其他国内赛事（部分源可能需要调整）
 # --------------------
 CHINA_GT_SOURCES = [
     {
@@ -185,18 +149,6 @@ CHINA_GT_SOURCES = [
         "url": "http://www.chinagt.net/news/",
         "category": "中国GT",
         "selectors": [".news-item", ".article-item", "li.news", ".list-item", ".news-list li", "article", ".post"],
-    },
-    {
-        "name": "澳门格兰披治大赛车",
-        "url": "https://www.macau.grandprix.gov.mo/zh/news",
-        "category": "澳门格兰披治",
-        "selectors": [".news-list a", ".article-list a", "li a", "h3 a"],
-    },
-    {
-        "name": "TCR China",
-        "url": "https://tcr-china.com/news/",
-        "category": "国内赛事",
-        "selectors": [".news-list a", ".article-list a", "li a"],
     },
 ]
 

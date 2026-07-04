@@ -191,11 +191,18 @@ def process_single_news(news: Dict) -> Dict:
 
     except Exception as e:
         print(f"[AI] 处理失败 {title}: {e}")
-        # 降级处理：保留原文
-        news["title_zh"] = title
+        # 降级处理：保留原文，但添加提示
+        news["title_zh"] = title if lang == "zh" else f"[待翻译] {title}"
         news["original_title_en"] = title if lang != "zh" else ""
-        news["summary_zh"] = summary[:500] if len(summary) > 10 else title[:500]
-        news["keywords"] = ""
+        
+        # 摘要添加失败提示
+        if summary and len(summary) > 10:
+            fail_msg = f"⚠️ AI 翻译暂不可用（{str(e)[:30]}），以下为原文摘要：\n\n{summary[:500]}"
+        else:
+            fail_msg = f"⚠️ AI 翻译暂不可用（{str(e)[:30]}），以下为原文标题：\n\n{title}"
+        news["summary_zh"] = fail_msg
+        news["keywords"] = "AI翻译失败"
+        news["translation_failed"] = True  # 标记翻译失败
 
     return news
 
@@ -220,6 +227,10 @@ def generate_wechat_html(news_list: List[Dict]) -> str:
             categorized[cat] = []
         categorized[cat].append(news)
 
+    # 检查是否有翻译失败的新闻
+    failed_count = sum(1 for n in news_list if n.get("translation_failed"))
+    all_failed = failed_count == len(news_list) and len(news_list) > 0
+
     # 分类颜色配置
     cat_colors = {
         "F1": {"main": "#e74c3c", "bg": "#fdf2f2", "border": "#fce4e4"},
@@ -243,6 +254,28 @@ def generate_wechat_html(news_list: List[Dict]) -> str:
   <p style="font-size: 14px; color: rgba(255,255,255,0.85); margin: 0;">{today} | 每日 10:00 更新</p>
 </section>
 
+"""
+
+    # 如果全部翻译失败，添加醒目的提示
+    if all_failed:
+        html += f"""
+<!-- 翻译失败提示 -->
+<section style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107; color: #856404;">
+  <p style="margin: 0; font-size: 15px; font-weight: bold;">⚠️ AI 翻译服务暂不可用</p>
+  <p style="margin: 5px 0 0 0; font-size: 13px; line-height: 1.6;">
+    本次内容未经过 AI 翻译，显示为英文原文。请检查 DeepSeek API 余额是否充足，或稍后重试。<br/>
+    建议操作：登录 <a href="https://platform.deepseek.com/" style="color: #e74c3c;">DeepSeek 平台</a> 充值 API 余额。
+  </p>
+</section>
+"""
+    elif failed_count > 0:
+        html += f"""
+<!-- 部分翻译失败提示 -->
+<section style="margin-bottom: 20px; padding: 12px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107; color: #856404;">
+  <p style="margin: 0; font-size: 13px;">
+    ⚠️ 本次有 {failed_count} 条新闻翻译失败，显示为英文原文。请检查 DeepSeek API 余额。
+  </p>
+</section>
 """
 
     # 遍历每个分类
@@ -364,6 +397,19 @@ def generate_plain_text(news_list: List[Dict]) -> str:
     lines.append(f"🏎️ 赛车日报 | {today}")
     lines.append("=" * 40)
     lines.append("")
+
+    # 检查是否有翻译失败
+    failed_count = sum(1 for n in news_list if n.get("translation_failed"))
+    all_failed = failed_count == len(news_list) and len(news_list) > 0
+
+    if all_failed:
+        lines.append("⚠️【提示】AI 翻译服务暂不可用")
+        lines.append("   本次内容显示为英文原文，请检查 DeepSeek API 余额是否充足。")
+        lines.append("   建议：登录 https://platform.deepseek.com/ 充值 API 余额")
+        lines.append("")
+    elif failed_count > 0:
+        lines.append(f"⚠️【提示】本次有 {failed_count} 条新闻翻译失败，显示为英文原文")
+        lines.append("")
 
     # 按分类分组
     categorized = {}
