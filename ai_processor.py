@@ -74,64 +74,88 @@ def process_single_news(news: Dict) -> Dict:
     # 根据语言确定 prompt
     if lang == "zh":
         # 中文新闻：直接生成摘要
-        prompt = f"""你是一位资深赛车运动记者。请阅读以下中文赛车新闻，生成一篇专业、简洁的报道摘要。
+        prompt = f"""你是一位资深赛车运动记者，精通F1、中国GT、MotoGP等赛事。请阅读以下中文赛车新闻，用专业、自然的中文撰写报道摘要。
+
+写作风格要求：
+- 语言要像新浪体育、腾讯体育、F1官方中文公众号那样自然流畅
+- 不要机械罗列数据，要像记者在写报道
+- 用中文表达习惯，不要直译英文句式
+- 每句话要有意义，不要凑字数
+- 保留专业术语（杆位、领奖台、DRS、套圈等），其他用词地道中文化
 
 【新闻标题】{title}
 【来源】{source}
 【发布时间】{pub_time}
-【正文内容】{content[:2000]}
+【正文内容】{content[:2500]}
 
 请严格按照以下格式输出（不要输出其他内容）：
 
 标题：{title}
 
-摘要：（中文，不超过 500 字。包含：比赛结果/事件要点、关键数据、车手/车队动态、积分榜变化等核心信息。语言专业简洁，像专业赛车记者写的报道。）
+摘要：（用自然流畅的中文，300-500字。聚焦：发生了什么、为什么重要、关键数据/结果。不要罗列无关细节，不要重复标题信息。要像一篇简洁的新闻报道。）
 
 关键词：3-5 个关键词，用顿号分隔（如：F1、墨西哥站、维斯塔潘）
 
 原文链接：{link}
 
 注意：
-- 摘要必须完整，不超过 500 字
-- 保留专业术语（F1、杆位、领奖台等）
+- 如果内容是赞助商列表、合作伙伴页面等非新闻内容，请直接输出：【非新闻内容，跳过】
+- 摘要必须完整、通顺，不超过 500 字
 - 不要包含广告、联系方式等无关信息
-- 如果内容不足以生成摘要，请根据标题合理推断并标注"据标题整理"
-"""
+- 如果内容不足以生成摘要，请根据标题合理推断并标注"据整理""" 
     else:
         # 英文新闻：先翻译，再生成摘要
-        prompt = f"""你是一位资深赛车运动记者，精通中英文赛车报道。请阅读以下英文赛车新闻，翻译成中文，并生成专业摘要。
+        prompt = f"""你是一位资深赛车运动记者，精通中英文赛车报道。请阅读以下英文赛车新闻，翻译成自然流畅的中文，并撰写专业报道摘要。
+
+翻译要求：
+- 不要直译！要用中文体育新闻的表达习惯
+- 标题翻译要专业，符合中文赛车圈常用说法
+- 人名、车队名按中文习惯翻译（如 Lewis Hamilton → 刘易斯·汉密尔顿/汉密尔顿）
+- 保留专业术语（DRS、杆位、套圈、安全车等），其他用词地道中文化
+- 语言风格像新浪体育、腾讯体育、F1官方中文公众号那样自然流畅
+- 不要机械罗列，每句话要有意义，不要凑字数
 
 【News Title】{title}
 【Source】{source}
 【Publish Date】{pub_time}
-【Content】{content[:2000]}
+【Content】{content[:2500]}
 
 请严格按照以下格式输出（不要输出其他内容）：
 
 英文原标题：{title}
 
-标题：（中文翻译后的标题，准确、专业）
+标题：（中文翻译，专业、简洁，符合中文体育新闻风格）
 
-摘要：（中文，不超过 500 字。包含：比赛结果/事件要点、关键数据、车手/车队动态、积分榜变化等核心信息。语言专业简洁，像专业赛车记者写的报道。）
+摘要：（中文，300-500字。聚焦：发生了什么、为什么重要、关键数据/结果。不要罗列无关细节，不要重复标题信息。像一篇简洁的新闻报道，自然流畅。）
 
 关键词：3-5 个中文关键词，用顿号分隔（如：F1、墨西哥站、维斯塔潘）
 
 原文链接：{link}
 
 注意：
-- 标题要准确翻译，保留专业术语（F1、Formula 1、pole position、podium 等）
-- 摘要必须完整，不超过 500 字
-- 如果内容不足以生成摘要，请根据标题合理推断并标注"据标题整理"
+- 如果内容是赞助商列表、合作伙伴页面、广告等非新闻内容，请直接输出：【非新闻内容，跳过】
+- 摘要必须完整、通顺，不超过 500 字
 - 不要包含广告、联系方式等无关信息
+- 不要机械罗列品牌名称、赞助商列表等无关信息
 """
 
     messages = [
-        {"role": "system", "content": "你是一位资深赛车运动记者，精通F1、中国GT、MotoGP等赛事报道。你擅长用专业、简洁的中文提炼新闻要点，确保内容完整、信息准确、语言流畅。你从不输出广告内容、联系方式或无关信息。"},
+        {"role": "system", "content": "你是一位资深赛车运动记者，精通F1、中国GT、MotoGP等赛事报道。你擅长用专业、自然、流畅的中文撰写赛车新闻，风格像新浪体育、腾讯体育、F1官方中文公众号。你从不输出广告内容、联系方式、赞助商列表或无关信息。遇到非新闻内容（如合作伙伴页面、赞助商列表、广告等），直接标注跳过。"},
         {"role": "user", "content": prompt}
     ]
 
     try:
         result = call_ai(messages)
+
+        # 检查是否为非新闻内容（AI 标记跳过）
+        if "【非新闻内容，跳过】" in result or "非新闻内容" in result:
+            print(f"[AI] ⚠️ 标记为非新闻内容，跳过：{title[:40]}...")
+            news["title_zh"] = f"[已跳过] {title[:40]}"
+            news["original_title_en"] = title if lang != "zh" else ""
+            news["summary_zh"] = "【非新闻内容，已跳过】"
+            news["keywords"] = ""
+            news["skip"] = True  # 标记跳过
+            return news
 
         # 解析 AI 输出
         title_zh = title
@@ -186,6 +210,7 @@ def process_single_news(news: Dict) -> Dict:
         news["summary_zh"] = summary_zh
         news["keywords"] = keywords
         news["lang"] = lang  # 保留语言标记
+        news["skip"] = False  # 标记不跳过
 
         print(f"[AI] 处理完成：{title_zh[:40]}...")
 
@@ -203,6 +228,7 @@ def process_single_news(news: Dict) -> Dict:
         news["summary_zh"] = fail_msg
         news["keywords"] = "AI翻译失败"
         news["translation_failed"] = True  # 标记翻译失败
+        news["skip"] = False
 
     return news
 
@@ -617,10 +643,35 @@ def process_news(news_list: List[Dict]) -> Dict:
 
     # 对每条新闻进行智能处理
     processed = []
+    skipped_count = 0
     for i, news in enumerate(valid_news):
         print(f"[AI] 处理第 {i+1}/{len(valid_news)} 条：{news.get('title', '')[:40]}...")
         processed_news = process_single_news(news)
+        # 过滤掉被标记为非新闻的内容
+        if processed_news.get("skip"):
+            skipped_count += 1
+            continue
         processed.append(processed_news)
+
+    if skipped_count > 0:
+        print(f"[AI] 跳过 {skipped_count} 条非新闻内容（合作伙伴列表/赞助商等）")
+
+    if not processed:
+        print("[AI] 警告：所有新闻均为非新闻内容，生成提示信息...")
+        today = datetime.now().strftime("%Y年%m月%d日")
+        article_title = f"🏎️ 赛车日报 | {today}（今日暂无有效新闻）"
+        article_html = generate_no_news_html(today, reason="今日抓取到的内容多为赞助商列表、合作伙伴页面等非新闻内容，已自动过滤。")
+        result = {
+            "title": article_title,
+            "content": article_html,
+            "plain_text": generate_no_news_plain(today, reason="今日抓取到的内容多为赞助商列表、合作伙伴页面等非新闻内容，已自动过滤。"),
+            "markdown": generate_no_news_md(today, reason="今日抓取到的内容多为赞助商列表、合作伙伴页面等非新闻内容，已自动过滤。"),
+            "news_count": 0,
+            "generated_at": datetime.now().isoformat(),
+            "news": [],
+        }
+        save_result(result)
+        return result
 
     # 按分类排序
     cat_order = {"F1": 0, "NASCAR": 1, "MotoGP": 2, "WRC": 3, "中国GT": 4, "澳门格兰披治": 5, "国内赛车": 6}
@@ -706,20 +757,22 @@ h1, h2, h3 {{ margin-top: 0; }}
     print(f"[保存] {md_path}")
 
 
-def generate_no_news_html(today: str) -> str:
+def generate_no_news_html(today: str, reason: str = "") -> str:
     """生成暂无新闻的 HTML"""
+    reason_html = f"<p style='font-size: 14px; color: #666; margin: 10px 0;'>{reason}</p>" if reason else ""
     return f"""<section style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; color: #333; line-height: 1.8;">
 <section style="text-align: center; padding: 25px 15px; background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); border-radius: 8px; margin-bottom: 25px;">
   <h1 style="font-size: 22px; color: #ffffff; margin: 0 0 8px 0; font-weight: bold;">🏎️ 赛车日报</h1>
   <p style="font-size: 14px; color: rgba(255,255,255,0.85); margin: 0;">{today}</p>
 </section>
 <section style="margin-bottom: 30px; padding: 20px; background: #fafafa; border-radius: 8px; text-align: center;">
-  <p style="font-size: 16px; color: #666; margin: 10px 0;">📭 今日暂无赛车新闻更新</p>
+  <p style="font-size: 16px; color: #666; margin: 10px 0;">📭 今日暂无有效赛车新闻</p>
+  {reason_html}
   <p style="font-size: 14px; color: #999; margin: 10px 0;">可能是以下原因：</p>
   <ul style="text-align: left; color: #666; font-size: 14px; line-height: 1.8; max-width: 400px; margin: 0 auto;">
     <li>新闻源网站暂时无法访问</li>
     <li>最近几天没有重大赛车赛事</li>
-    <li>网络连接不稳定</li>
+    <li>抓取到的内容多为非新闻页面（已自动过滤）</li>
   </ul>
   <p style="font-size: 14px; color: #999; margin: 15px 0;">系统将每天 10:00 自动重试，请耐心等待。</p>
 </section>
@@ -730,18 +783,19 @@ def generate_no_news_html(today: str) -> str:
 </section>"""
 
 
-def generate_no_news_plain(today: str) -> str:
+def generate_no_news_plain(today: str, reason: str = "") -> str:
     """生成暂无新闻的纯文本"""
+    reason_text = f"\n{reason}\n" if reason else ""
     return f"""========================================
 🏎️ 赛车日报 | {today}
 ========================================
 
-📭 今日暂无赛车新闻更新
+📭 今日暂无有效赛车新闻{reason_text}
 
 可能是以下原因：
 - 新闻源网站暂时无法访问
 - 最近几天没有重大赛车赛事
-- 网络连接不稳定
+- 抓取到的内容多为非新闻页面（已自动过滤）
 
 系统将每天 10:00 自动重试，请耐心等待。
 
@@ -752,18 +806,19 @@ def generate_no_news_plain(today: str) -> str:
 """
 
 
-def generate_no_news_md(today: str) -> str:
+def generate_no_news_md(today: str, reason: str = "") -> str:
     """生成暂无新闻的 Markdown"""
+    reason_md = f"\n> {reason}\n" if reason else ""
     return f"""# 🏎️ 赛车日报 | {today}
 
-> 每日 10:00 自动更新，汇总全球赛车资讯
+> 每日 10:00 自动更新，汇总全球赛车资讯{reason_md}
 
-## 📭 今日暂无赛车新闻更新
+## 📭 今日暂无有效赛车新闻
 
 可能是以下原因：
 - 新闻源网站暂时无法访问
 - 最近几天没有重大赛车赛事
-- 网络连接不稳定
+- 抓取到的内容多为非新闻页面（已自动过滤）
 
 系统将每天 10:00 自动重试，请耐心等待。
 

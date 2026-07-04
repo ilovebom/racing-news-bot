@@ -164,21 +164,46 @@ AD_KEYWORDS = [
     "Powered by", "免责声明", "隐私政策",
     "点击这里", "立即注册", "免费试用", "优惠",
     "赌场", "彩票", "赌博", "casino", "bet365",
+    # 新增：非新闻内容过滤
+    "official partners", "official partner", "partners list", "partner list",
+    "赞助商列表", "合作伙伴列表", "官方合作伙伴", "赞助商名单",
+    "become a sponsor", "sponsorship opportunities", "sponsor us",
+    "our sponsors", "proud sponsors", "title sponsor", "presenting sponsor",
+    "官方赞助商", "冠名赞助商", "合作伙伴招募", "商务合作",
+    "advertise with us", "advertising", "广告合作",
 ]
 
 BAD_TITLE_PATTERNS = [
     r'^电话', r'^传真', r'^邮箱', r'^地址', r'^联系',
     r'^关于我们', r'^关于\b', r'^首页', r'^\d{3,4}-\d{7,8}',
     r'^联系我们', r'^公司简介', r'^导航$', r'^当前位置',
+    # 新增：过滤非新闻标题
+    r'official\s*partner', r'our\s*sponsors', r'sponsor\s*list',
+    r'partner\s*list', r'become\s*a\s*sponsor', r'sponsorship',
+    r'合作伙伴$', r'赞助商$', r'合作伙伴列表', r'赞助商列表',
+    r'^advertis', r'^广告', r'^商务合作',
+]
+
+# 非新闻内容判断：如果标题包含这些词，且正文很短，则判定为非新闻
+NON_NEWS_TITLE_KEYWORDS = [
+    "official partners", "partners", "sponsors", "sponsor",
+    "官方合作伙伴", "合作伙伴", "赞助商", "赞助商名单",
+    "advertise", "advertising", "广告", "商务合作",
+    "about us", "about", "关于我们", "关于",
+    "contact us", "联系我们", "contact",
+    "privacy policy", "privacy", "隐私政策",
+    "terms of use", "terms", "使用条款",
+    "careers", "jobs", "招聘", "加入我们",
+    "media kit", "press kit", "媒体资料",
 ]
 
 
 def is_ad_or_spam(title: str, summary: str = "") -> bool:
-    """判断是否为广告或垃圾内容"""
-    text = title + " " + summary
+    """判断是否为广告、垃圾内容或非新闻内容"""
+    text = (title + " " + summary).lower()
 
     for kw in AD_KEYWORDS:
-        if kw in text:
+        if kw.lower() in text:
             return True
 
     for pattern in BAD_TITLE_PATTERNS:
@@ -191,9 +216,72 @@ def is_ad_or_spam(title: str, summary: str = "") -> bool:
     if len(summary) < 50 and any(kw in summary for kw in ["电话", "邮箱", "地址"]):
         return True
 
-    # 过滤纯大写英文标题（通常是广告）
+    # 过滤纯大写英文标题（通常是广告或标签页）
     if title.isupper() and len(title) > 20:
         return True
+
+    # 新增：过滤合作伙伴/赞助商列表等非新闻内容
+    # 如果标题中包含明显的非新闻关键词，直接过滤
+    title_lower = title.lower()
+    for kw in NON_NEWS_TITLE_KEYWORDS:
+        if kw.lower() in title_lower:
+            # 如果是合作伙伴列表类，摘要很短且没有实质性内容，则判定为广告
+            if len(summary) < 200 or "official" in title_lower or "partner" in title_lower or "sponsor" in title_lower:
+                return True
+
+    return False
+
+
+def is_non_news_page(content_text: str, title: str = "") -> bool:
+    """
+    判断页面内容是否为非新闻页面（如合作伙伴列表、赞助商页等）
+    返回 True 表示这是非新闻内容，应该跳过
+    """
+    if not content_text:
+        return True
+
+    text_lower = content_text.lower()
+    title_lower = title.lower()
+
+    # 检查标题是否包含明显的非新闻关键词
+    non_news_keywords = [
+        "official partners", "our partners", "our sponsors", "partner list",
+        "sponsor list", "become a sponsor", "sponsorship opportunities",
+        "official sponsor", "title sponsor", "presenting sponsor",
+        "advertise with us", "advertising", "media kit", "press kit",
+    ]
+    for kw in non_news_keywords:
+        if kw in title_lower:
+            return True
+
+    # 检查内容是否是列表/罗列型（比如罗列几十个赞助商名称）
+    # 特征：大量 "official" 或品牌名称连续出现
+    official_count = text_lower.count("official")
+    # 如果 "official" 出现超过 5 次，很可能是合作伙伴列表页
+    if official_count >= 5:
+        return True
+
+    # 检查内容中是否主要是品牌名称列表（短句+换行/逗号分隔）
+    lines = content_text.split('\n')
+    short_brand_lines = 0
+    for line in lines:
+        line = line.strip()
+        # 短行（3-30个字符），且看起来像品牌名称（纯英文或包含®、™）
+        if 3 <= len(line) <= 50 and (line.isalpha() or '®' in line or '™' in line or 'official' in line.lower()):
+            short_brand_lines += 1
+    # 如果超过 50% 的行都是短品牌名称，判定为列表页
+    if len(lines) > 10 and short_brand_lines / len(lines) > 0.5:
+        return True
+
+    # 检查内容是否过短（少于 200 字且没有新闻要素）
+    if len(content_text) < 200:
+        # 检查是否有新闻特征词
+        news_indicators = ["said", "said", "announced", "reported", "won", "victory",
+                          "race", "championship", "season", "driver", "team",
+                          "比赛", "冠军", "赛季", "车手", "车队", "宣布", "报道"]
+        has_news_indicator = any(ind in text_lower for ind in news_indicators)
+        if not has_news_indicator:
+            return True
 
     return False
 
@@ -555,13 +643,15 @@ def fetch_china_gt_news() -> List[Dict]:
 # ============================================================
 
 def enrich_news_detail(news_list: List[Dict]) -> List[Dict]:
-    """补充新闻详情（完整正文、图片）"""
+    """补充新闻详情（完整正文、图片），并过滤非新闻内容"""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
 
+    valid_news = []
     for news in news_list:
         if not news.get("link"):
+            valid_news.append(news)
             continue
 
         try:
@@ -594,6 +684,11 @@ def enrich_news_detail(news_list: List[Dict]) -> List[Dict]:
             content_text = re.sub(r'\n+', '\n', content_text).strip()
             content_text = re.sub(r'\s+', ' ', content_text).strip()
 
+            # 2. 检查是否为非新闻页面（如合作伙伴列表、赞助商页等）
+            if is_non_news_page(content_text, news.get("title", "")):
+                print(f"[详情] ⚠️ 跳过非新闻内容：{news['title'][:40]}...（合作伙伴/赞助商列表等）")
+                continue
+
             # 保存完整内容
             news["full_content"] = content_text[:3000]
 
@@ -601,7 +696,7 @@ def enrich_news_detail(news_list: List[Dict]) -> List[Dict]:
             if not news.get("summary") or len(news.get("summary", "")) < 50:
                 news["summary"] = content_text[:500] if len(content_text) > 50 else ""
 
-            # 2. 提取封面图
+            # 3. 提取封面图
             if not news.get("image"):
                 img_selectors = [
                     "article img", ".article-content img", ".content img",
@@ -626,10 +721,13 @@ def enrich_news_detail(news_list: List[Dict]) -> List[Dict]:
                                 news["image"] = src
                                 break
 
+            valid_news.append(news)
+
         except Exception as e:
             print(f"[详情] 抓取失败 {news['link']}: {e}")
+            valid_news.append(news)  # 保留原始新闻，即使详情抓取失败
 
-    return news_list
+    return valid_news
 
 
 # ============================================================
