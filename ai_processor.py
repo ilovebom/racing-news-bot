@@ -308,8 +308,57 @@ def process_news(news_list: List[Dict]) -> Dict:
     valid_news = [n for n in news_list if (n.get("summary") or n.get("full_content")) and len(n.get("title", "")) > 5]
 
     if not valid_news:
-        print("[AI] 警告：没有有效新闻可处理")
-        return {"title": "赛车日报", "content": "", "news_count": 0, "news": []}
+        print("[AI] 警告：没有有效新闻可处理，生成提示信息...")
+        today = datetime.now().strftime("%Y年%m月%d日")
+        article_title = f"🏎️ 赛车日报 | {today}（今日暂无新闻）"
+        article_html = f"""<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; color: #333; line-height: 1.8; max-width: 100%;">
+
+<section style="text-align: center; padding: 20px 0; border-bottom: 2px solid #e74c3c; margin-bottom: 20px;">
+  <h1 style="font-size: 24px; color: #c0392b; margin: 0 0 8px 0;">🏎️ 赛车日报</h1>
+  <p style="font-size: 14px; color: #999; margin: 0;">{today} | F1 & 中国GT世界挑战赛</p>
+</section>
+
+<section style="margin-bottom: 30px; padding: 20px; background: #fafafa; border-radius: 8px; text-align: center;">
+  <p style="font-size: 16px; color: #666; margin: 10px 0;">📢 今日暂无赛车新闻更新</p>
+  <p style="font-size: 14px; color: #999; margin: 10px 0;">可能是以下原因：</p>
+  <ul style="text-align: left; color: #666; font-size: 14px; line-height: 1.8;">
+    <li>新闻源网站暂时无法访问</li>
+    <li>最近几天没有重大赛车赛事</li>
+    <li>网络连接不稳定</li>
+  </ul>
+  <p style="font-size: 14px; color: #999; margin: 15px 0;">系统将每天 10:00 自动重试，请耐心等待。</p>
+</section>
+
+<section style="text-align: center; padding: 20px 0; color: #999; font-size: 13px; border-top: 1px solid #eee; margin-top: 20px;">
+  <p style="margin: 5px 0;">🏎️ 赛车日报 · 每日 10:00 准时更新</p>
+  <p style="margin: 5px 0; font-size: 12px; color: #bbb;">生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+</section>
+
+</div>"""
+        result = {
+            "title": article_title,
+            "content": article_html,
+            "news_count": 0,
+            "generated_at": datetime.now().isoformat(),
+            "news": [],
+        }
+
+        # 保存结果
+        output_path = "data/processed_article.json"
+        os.makedirs("data", exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+
+        html_path = "data/preview.html"
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>{article_title}</title></head>
+<body style="max-width: 680px; margin: 0 auto; padding: 20px;">
+{article_html}
+</body></html>""")
+
+        return result
 
     print(f"[AI] 共 {len(valid_news)} 条新闻待处理\n")
 
