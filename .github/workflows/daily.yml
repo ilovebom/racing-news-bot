@@ -26,20 +26,13 @@ jobs:
         with:
           python-version: '3.11'
       
-      # 步骤 3：安装系统依赖（Playwright 需要）
-      - name: 安装系统依赖
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64
-      
-      # 步骤 4：安装 Python 依赖
+      # 步骤 3：安装 Python 依赖
       - name: 安装依赖
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          playwright install chromium
       
-      # 步骤 5：配置环境变量
+      # 步骤 4：配置环境变量
       - name: 创建 .env 文件
         run: |
           echo "DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" >> .env
@@ -49,13 +42,13 @@ jobs:
           echo "LOG_LEVEL=INFO" >> .env
         shell: bash
       
-      # 步骤 6：运行主程序
+      # 步骤 5：运行主程序
       - name: 运行赛车资讯自动发布
         run: python main.py
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       
-      # 步骤 7：上传运行结果（可选）
+      # 步骤 6：上传运行结果
       - name: 上传生成的文章
         if: always()
         uses: actions/upload-artifact@v4
