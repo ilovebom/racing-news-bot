@@ -54,8 +54,7 @@ def main():
 
     # 保存已发布新闻记录（用于明天去重，避免重复）
     from fetcher import save_published_history
-    published_titles = [n.get("title", "") for n in news_list]
-    save_published_history(published_titles)
+    save_published_history(news_list)  # 传入完整新闻列表
 
     # ============================================================
     # 步骤 3：自动发布

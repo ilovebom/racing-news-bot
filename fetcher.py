@@ -294,8 +294,18 @@ PUBLISHED_HISTORY_FILE = "data/published_history.json"
 HISTORY_MAX_DAYS = 30  # 只保留最近30天的记录
 
 
+def normalize_title(title: str) -> str:
+    """标准化标题：去掉标点、空格、大小写，用于模糊匹配"""
+    import re
+    # 转小写，去掉所有标点符号和多余空格
+    s = title.lower()
+    s = re.sub(r'[^\w\s]', '', s)  # 去掉标点
+    s = re.sub(r'\s+', ' ', s).strip()  # 合并空格
+    return s
+
+
 def load_published_history() -> set:
-    """加载已发布过的新闻标题集合"""
+    """加载已发布过的新闻标题集合（标准化后）"""
     try:
         if os.path.exists(PUBLISHED_HISTORY_FILE):
             with open(PUBLISHED_HISTORY_FILE, "r", encoding="utf-8") as f:
@@ -306,7 +316,8 @@ def load_published_history() -> set:
                 titles = set()
                 for date_str, title_list in data.items():
                     if date_str >= cutoff_date:
-                        titles.update(title_list)
+                        for t in title_list:
+                            titles.add(normalize_title(t))  # 标准化后存储
                 print(f"[去重] 已加载 {len(titles)} 条已发布新闻记录")
                 return titles
     except Exception as e:
@@ -314,7 +325,7 @@ def load_published_history() -> set:
     return set()
 
 
-def save_published_history(titles: list):
+def save_published_history(news_list: list):
     """保存今天发布的新闻标题到历史记录"""
     today = datetime.now().strftime("%Y-%m-%d")
     try:
@@ -324,8 +335,18 @@ def save_published_history(titles: list):
             with open(PUBLISHED_HISTORY_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
+        # 今天的新标题（原始标题，用于展示）
+        today_titles = []
+        for news in news_list:
+            t = news.get("title", "").strip()
+            t_zh = news.get("title_zh", "").strip()
+            if t:
+                today_titles.append(t)
+            if t_zh and t_zh != t:
+                today_titles.append(t_zh)
+
         # 更新今天的记录
-        data[today] = titles
+        data[today] = today_titles
 
         # 清理超过30天的旧记录
         cutoff_date = (datetime.now() - timedelta(days=HISTORY_MAX_DAYS)).strftime("%Y-%m-%d")
@@ -335,13 +356,13 @@ def save_published_history(titles: list):
         os.makedirs(os.path.dirname(PUBLISHED_HISTORY_FILE), exist_ok=True)
         with open(PUBLISHED_HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"[去重] 已保存 {len(titles)} 条今日发布记录到历史")
+        print(f"[去重] 已保存 {len(today_titles)} 条今日发布记录到历史")
     except Exception as e:
         print(f"[去重] 保存发布记录失败：{e}")
 
 
 def filter_published_news(news_list: List[Dict], published_titles: set) -> List[Dict]:
-    """过滤掉已经发布过的新闻"""
+    """过滤掉已经发布过的新闻（模糊匹配标题）"""
     if not published_titles:
         return news_list
 
@@ -350,14 +371,34 @@ def filter_published_news(news_list: List[Dict], published_titles: set) -> List[
     for news in news_list:
         title = news.get("title", "").strip()
         title_zh = news.get("title_zh", "").strip()
-        # 用标题和中文标题都检查
-        if title in published_titles or (title_zh and title_zh in published_titles):
+
+        # 用标准化后的标题检查
+        title_norm = normalize_title(title)
+        title_zh_norm = normalize_title(title_zh) if title_zh else ""
+
+        # 检查是否匹配（原始或标准化）
+        matched = False
+        for published_norm in published_titles:
+            if title_norm == published_norm:
+                matched = True
+                break
+            if title_zh_norm and title_zh_norm == published_norm:
+                matched = True
+                break
+            # 额外检查：如果标准化后的标题前30个字符相同，也认为是重复
+            if title_norm and published_norm and title_norm[:30] == published_norm[:30] and len(title_norm) > 20:
+                matched = True
+                break
+
+        if matched:
             skipped += 1
-            continue
-        filtered.append(news)
+            if skipped <= 3:  # 只打印前3条跳过的新闻，避免刷屏
+                print(f"[去重] 跳过已发布：{title[:40]}...")
+        else:
+            filtered.append(news)
 
     if skipped > 0:
-        print(f"[去重] 过滤掉 {skipped} 条已发布过的新闻")
+        print(f"[去重] 共过滤掉 {skipped} 条已发布过的新闻")
     return filtered
 
 
@@ -914,12 +955,11 @@ def fetch_all_news(enabled_categories: List[str] = None) -> List[Dict]:
     published_titles = load_published_history()
     all_news = filter_published_news(all_news, published_titles)
 
-    # 如果过滤后新闻太少（<3条），放宽限制，保留至少几条
+    # 如果过滤后新闻太少，给出提示（不再绕过去重）
     if len(all_news) < 3:
-        print(f"[去重] 过滤后仅剩 {len(all_news)} 条，放宽限制保留更多新闻...")
-        # 重新加载不过滤
-        all_news = unique_news
-        all_news.sort(key=lambda x: x["pub_time"], reverse=True)
+        print(f"\n⚠️  [去重] 过滤后仅剩 {len(all_news)} 条新闻")
+        print(f"⚠️  如需更多新闻，请调大 NEWS_MAX_AGE_DAYS 环境变量（当前=2天）")
+        print(f"⚠️  但绝不会发布已发布过的新闻！\n")
 
     # 10. 限制每个类别的新闻条数
     max_per_category = int(os.getenv("MAX_NEWS_PER_CATEGORY", "10"))
