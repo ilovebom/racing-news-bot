@@ -39,6 +39,8 @@ jobs:
           echo "AI_MODEL=deepseek-chat" >> .env
           echo "AUTO_PUBLISH=false" >> .env
           echo "MAX_NEWS_PER_DAY=8" >> .env
+          echo "NEWS_MAX_AGE_DAYS=2" >> .env
+          echo "NEWS_MAX_AGE_DAYS_CN=3" >> .env
           echo "LOG_LEVEL=INFO" >> .env
         shell: bash
       
@@ -47,8 +49,19 @@ jobs:
         run: python main.py
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          NEWS_MAX_AGE_DAYS: "2"
+          NEWS_MAX_AGE_DAYS_CN: "3"
       
-      # 步骤 6：上传运行结果
+      # 步骤 6：提交发布记录回仓库（用于明天去重，避免重复发布）
+      - name: 提交发布记录
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/published_history.json || true
+          git commit -m "更新发布记录 $(date -u +%Y-%m-%d)" || echo "无变更需提交"
+          git push || echo "推送失败，不影响主流程"
+      
+      # 步骤 7：上传运行结果
       - name: 上传生成的文章
         if: always()
         uses: actions/upload-artifact@v4

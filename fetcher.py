@@ -287,6 +287,81 @@ def is_non_news_page(content_text: str, title: str = "") -> bool:
 
 
 # ============================================================
+# 已发布新闻记录（去重用，避免重复发布昨天的内容）
+# ============================================================
+
+PUBLISHED_HISTORY_FILE = "data/published_history.json"
+HISTORY_MAX_DAYS = 30  # 只保留最近30天的记录
+
+
+def load_published_history() -> set:
+    """加载已发布过的新闻标题集合"""
+    try:
+        if os.path.exists(PUBLISHED_HISTORY_FILE):
+            with open(PUBLISHED_HISTORY_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                # data 格式: {"2026-07-04": ["标题1", "标题2", ...], ...}
+                # 只保留最近 HISTORY_MAX_DAYS 天的
+                cutoff_date = (datetime.now() - timedelta(days=HISTORY_MAX_DAYS)).strftime("%Y-%m-%d")
+                titles = set()
+                for date_str, title_list in data.items():
+                    if date_str >= cutoff_date:
+                        titles.update(title_list)
+                print(f"[去重] 已加载 {len(titles)} 条已发布新闻记录")
+                return titles
+    except Exception as e:
+        print(f"[去重] 加载已发布记录失败（首次运行正常）：{e}")
+    return set()
+
+
+def save_published_history(titles: list):
+    """保存今天发布的新闻标题到历史记录"""
+    today = datetime.now().strftime("%Y-%m-%d")
+    try:
+        # 读取已有记录
+        data = {}
+        if os.path.exists(PUBLISHED_HISTORY_FILE):
+            with open(PUBLISHED_HISTORY_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+        # 更新今天的记录
+        data[today] = titles
+
+        # 清理超过30天的旧记录
+        cutoff_date = (datetime.now() - timedelta(days=HISTORY_MAX_DAYS)).strftime("%Y-%m-%d")
+        data = {k: v for k, v in data.items() if k >= cutoff_date}
+
+        # 保存
+        os.makedirs(os.path.dirname(PUBLISHED_HISTORY_FILE), exist_ok=True)
+        with open(PUBLISHED_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"[去重] 已保存 {len(titles)} 条今日发布记录到历史")
+    except Exception as e:
+        print(f"[去重] 保存发布记录失败：{e}")
+
+
+def filter_published_news(news_list: List[Dict], published_titles: set) -> List[Dict]:
+    """过滤掉已经发布过的新闻"""
+    if not published_titles:
+        return news_list
+
+    filtered = []
+    skipped = 0
+    for news in news_list:
+        title = news.get("title", "").strip()
+        title_zh = news.get("title_zh", "").strip()
+        # 用标题和中文标题都检查
+        if title in published_titles or (title_zh and title_zh in published_titles):
+            skipped += 1
+            continue
+        filtered.append(news)
+
+    if skipped > 0:
+        print(f"[去重] 过滤掉 {skipped} 条已发布过的新闻")
+    return filtered
+
+
+# ============================================================
 # 通用 RSS 抓取函数
 # ============================================================
 
@@ -467,13 +542,17 @@ def fetch_web_generic(web_sources: List[Dict], max_age_days: int = 7, max_per_so
 # ============================================================
 
 def fetch_f1_rss() -> List[Dict]:
-    """从 RSS 源抓取 F1 新闻"""
-    return fetch_rss_generic(F1_RSS_SOURCES, max_age_days=7, max_per_source=15)
+    """从 RSS 源抓取 F1 新闻（只抓最近48小时）"""
+    import os
+    days = int(os.getenv("NEWS_MAX_AGE_DAYS", "2"))
+    return fetch_rss_generic(F1_RSS_SOURCES, max_age_days=days, max_per_source=15)
 
 
 def fetch_f1_web_backup() -> List[Dict]:
-    """从网页抓取 F1 新闻作为备份"""
-    return fetch_web_generic(F1_WEB_SOURCES, max_age_days=7, max_per_source=10)
+    """从网页抓取 F1 新闻作为备份（只抓最近48小时）"""
+    import os
+    days = int(os.getenv("NEWS_MAX_AGE_DAYS", "2"))
+    return fetch_web_generic(F1_WEB_SOURCES, max_age_days=days, max_per_source=10)
 
 
 # ============================================================
@@ -481,12 +560,14 @@ def fetch_f1_web_backup() -> List[Dict]:
 # ============================================================
 
 def fetch_nascar_news() -> List[Dict]:
-    """抓取 NASCAR 新闻"""
+    """抓取 NASCAR 新闻（只抓最近48小时）"""
+    import os
+    days = int(os.getenv("NEWS_MAX_AGE_DAYS", "2"))
     print("\n[NASCAR] 开始抓取 NASCAR 新闻...")
-    news = fetch_rss_generic(NASCAR_RSS_SOURCES, max_age_days=7, max_per_source=10)
+    news = fetch_rss_generic(NASCAR_RSS_SOURCES, max_age_days=days, max_per_source=10)
     if not news:
         print("[NASCAR] RSS 未获取到新闻，尝试网页备份...")
-        news = fetch_web_generic(NASCAR_WEB_SOURCES, max_age_days=7, max_per_source=8)
+        news = fetch_web_generic(NASCAR_WEB_SOURCES, max_age_days=days, max_per_source=8)
     return news
 
 
@@ -495,15 +576,19 @@ def fetch_nascar_news() -> List[Dict]:
 # ============================================================
 
 def fetch_motogp_news() -> List[Dict]:
-    """抓取 MotoGP 新闻"""
+    """抓取 MotoGP 新闻（只抓最近48小时）"""
+    import os
+    days = int(os.getenv("NEWS_MAX_AGE_DAYS", "2"))
     print("\n[MotoGP] 开始抓取 MotoGP 新闻...")
-    return fetch_rss_generic(MOTOGP_RSS_SOURCES, max_age_days=7, max_per_source=10)
+    return fetch_rss_generic(MOTOGP_RSS_SOURCES, max_age_days=days, max_per_source=10)
 
 
 def fetch_wrc_news() -> List[Dict]:
-    """抓取 WRC 新闻"""
+    """抓取 WRC 新闻（只抓最近48小时）"""
+    import os
+    days = int(os.getenv("NEWS_MAX_AGE_DAYS", "2"))
     print("\n[WRC] 开始抓取 WRC 新闻...")
-    return fetch_rss_generic(WRC_RSS_SOURCES, max_age_days=7, max_per_source=10)
+    return fetch_rss_generic(WRC_RSS_SOURCES, max_age_days=days, max_per_source=10)
 
 
 # ============================================================
@@ -511,9 +596,11 @@ def fetch_wrc_news() -> List[Dict]:
 # ============================================================
 
 def fetch_china_racing_news() -> List[Dict]:
-    """抓取国内赛车新闻"""
+    """抓取国内赛车新闻（放宽到72小时，因为国内赛事更新频率低）"""
+    import os
+    days = int(os.getenv("NEWS_MAX_AGE_DAYS_CN", "3"))
     print("\n[国内赛车] 开始抓取国内赛车新闻...")
-    return fetch_web_generic(CHINA_RACING_WEB_SOURCES, max_age_days=14, max_per_source=8)
+    return fetch_web_generic(CHINA_RACING_WEB_SOURCES, max_age_days=days, max_per_source=8)
 
 
 # ============================================================
@@ -521,9 +608,11 @@ def fetch_china_racing_news() -> List[Dict]:
 # ============================================================
 
 def fetch_china_gt_news() -> List[Dict]:
-    """抓取中国 GT 新闻"""
+    """抓取中国 GT 新闻（放宽到72小时）"""
+    import os
+    cn_days = int(os.getenv("NEWS_MAX_AGE_DAYS_CN", "3"))
     all_news = []
-    cutoff = datetime.now() - timedelta(days=30)
+    cutoff = datetime.now() - timedelta(days=cn_days)
 
     for source in CHINA_GT_SOURCES:
         try:
@@ -818,10 +907,21 @@ def fetch_all_news(enabled_categories: List[str] = None) -> List[Dict]:
     else:
         print("\n[警告] 没有抓取到任何新闻，跳过详情补充")
 
-    # 8. 按时间排序
+    # 8. 按时间排序（最新的排最前）
     all_news.sort(key=lambda x: x["pub_time"], reverse=True)
 
-    # 9. 限制每个类别的新闻条数
+    # 9. 过滤已发布过的新闻（避免和昨天重复）
+    published_titles = load_published_history()
+    all_news = filter_published_news(all_news, published_titles)
+
+    # 如果过滤后新闻太少（<3条），放宽限制，保留至少几条
+    if len(all_news) < 3:
+        print(f"[去重] 过滤后仅剩 {len(all_news)} 条，放宽限制保留更多新闻...")
+        # 重新加载不过滤
+        all_news = unique_news
+        all_news.sort(key=lambda x: x["pub_time"], reverse=True)
+
+    # 10. 限制每个类别的新闻条数
     max_per_category = int(os.getenv("MAX_NEWS_PER_CATEGORY", "10"))
     if max_per_category > 0:
         category_count = {}

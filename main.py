@@ -52,6 +52,11 @@ def main():
     result = process_news(news_list)
     print(f"[主程序] ✅ 步骤 2 完成，文章标题：{result['title']}\n")
 
+    # 保存已发布新闻记录（用于明天去重，避免重复）
+    from fetcher import save_published_history
+    published_titles = [n.get("title", "") for n in news_list]
+    save_published_history(published_titles)
+
     # ============================================================
     # 步骤 3：自动发布
     # ============================================================
