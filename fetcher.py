@@ -290,7 +290,7 @@ def is_non_news_page(content_text: str, title: str = "") -> bool:
 # 已发布新闻记录（去重用，避免重复发布昨天的内容）
 # ============================================================
 
-PUBLISHED_HISTORY_FILE = "data/published_history.json"
+PUBLISHED_HISTORY_FILE = "published_history.json"
 HISTORY_MAX_DAYS = 30  # 只保留最近30天的记录
 
 

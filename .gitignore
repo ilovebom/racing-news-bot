@@ -15,10 +15,11 @@ venv/
 env/
 .venv/
 
-# 运行时数据
+# 运行时数据（去重历史文件需要跟踪，放在根目录）
 data/
 *.json
 !*.example.json
+!published_history.json
 
 # Playwright
 playwright-report/
